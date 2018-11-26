@@ -1,34 +1,50 @@
+# Import data to R
 train <- read.csv("cs-training.csv")
 test <- read.csv("cs-test.csv")
 
-colnames(train) <- c("ID", "default", "balanceR", "age", "t30", "debtR", "income", "loans", "t90", "mortgage", "t60", "dependents")
+# Rename column names
+colnames(train) <- c("ID", "delin90", "balanceR", "age", "t30", "debtR", "income", "loans", "t90", "mortgage", "t60", "dependents")
+colnames(test) <- c("ID", "delin90", "balanceR", "age", "t30", "debtR", "income", "loans", "t90", "mortgage", "t60", "dependents")
+
+# Display the structure of the dataset
+str(train)
+str(test)
+#----------------------------------------------------------------
+# missing data imputation
+#----------------------------------------------------------------
+
+# There are missing data in explanatory variables: income and dependents 
+
+# Impute missing income with the median income
+train$income[is.na(train$income)] <- median(train$income[!is.na(train$income)])
+test$income[is.na(test$income)] <- median(test$income[!is.na(test$income)])
+
+# Impute dependents with most frequent element 
+# The most frequent number of dependents is 0
+sort(table(train$dependents),decreasing=TRUE)[1]
+#     0 
+# 86902 
+train$dependents[is.na(train$dependents)] <- 0
+
+sort(table(test$dependents),decreasing=TRUE)[1]
+#     0 
+# 58618 
+test$dependents[is.na(test$dependents)] <- 0
 
 #----------------------------------------------------------------
-# naive analysis
-# delete all rows with missing values
-# split the remaining data according to 7/3 rule 
+# Split training dataset into training, validation and test sets
+#----------------------------------------------------------------
 
-# missing data
-dim(train[!complete.cases(train),])
-# [1] 29731    12
-
-# delete rows with NA 
-try <- na.omit(train)
-# [1] 120269     12
-
-# split the data according to 7/3 rule 
 set.seed(1)
-ind <- sample(nrow(try), 84188) # randomly select 70% of data
-t1 <- try[ind, -1] # new training data
-t2 <- try[-ind, -1] # new test data
+ind <- sample(nrow(train), nrow(train))
+tr <- train[ind[1:75000], -1] # training set
+va <- train[ind[75001:112500], -1] # validation set
+te <- train[ind[112501:150000], -1] # test set
 
-# summary of data
-summary(t1)
 
 #----------------------------------------------------------------
 # exploratory statistical analysis
 #----------------------------------------------------------------
-
 
 ####### Total balance on credit cards and personal lines of credit except real estate 
 # divided by the sum of credit limits
@@ -219,148 +235,259 @@ hist(sort(dependents)[1:84100])
 
 
 #----------------------------------------------------------------
-# Model/covariate selection? 
+# Collinearity checks
 #----------------------------------------------------------------
 
+# Check collinearity among covariates in the training set
+#--------------------
+round(cor(tr), 3)
+#            delin90 balanceR    age    t30  debtR income  loans    t90 mortgage    t60 dependents
+# delin90      1.000   -0.002 -0.114  0.133 -0.008 -0.018 -0.027  0.126   -0.005  0.112      0.048
+# balanceR    -0.002    1.000 -0.002 -0.001  0.003  0.004 -0.012 -0.001    0.006 -0.001      0.000
+# age         -0.114   -0.002  1.000 -0.063  0.022  0.035  0.148 -0.060    0.032 -0.057     -0.214
+# t30          0.133   -0.001 -0.063  1.000 -0.006 -0.011 -0.058  0.985   -0.031  0.988     -0.004
+# debtR       -0.008    0.003  0.022 -0.006  1.000 -0.017  0.041 -0.007    0.096 -0.007     -0.036
+# income      -0.018    0.004  0.035 -0.011 -0.017  1.000  0.097 -0.013    0.130 -0.012      0.071
+# loans       -0.027   -0.012  0.148 -0.058  0.041  0.097  1.000 -0.082    0.432 -0.074      0.074
+# t90          0.126   -0.001 -0.060  0.985 -0.007 -0.013 -0.082  1.000   -0.045  0.993     -0.010
+# mortgage    -0.005    0.006  0.032 -0.031  0.096  0.130  0.432 -0.045    1.000 -0.040      0.126
+# t60          0.112   -0.001 -0.057  0.988 -0.007 -0.012 -0.074  0.993   -0.040  1.000     -0.011
+# dependents   0.048    0.000 -0.214 -0.004 -0.036  0.071  0.074 -0.010    0.126 -0.011      1.000
+
+
+# Covariates t30, t60 and t90 are highly correlated
+# Since t30 and response has the largest correlation, 0.133 compared to 0.112 and 0.126,
+# we'll keep t30 into the model and not inlclude the other two covariates, t60 and t90
+
+# New training data excluding covariates t60 and t90
+newTr <- tr[,c(-8, -10)]
+
+# Double check correlation of the new training set
+round(cor(newTr), 3)
+#            delin90 balanceR    age    t30  debtR income  loans mortgage dependents
+# delin90      1.000   -0.002 -0.114  0.133 -0.008 -0.018 -0.027   -0.005      0.048
+# balanceR    -0.002    1.000 -0.002 -0.001  0.003  0.004 -0.012    0.006      0.000
+# age         -0.114   -0.002  1.000 -0.063  0.022  0.035  0.148    0.032     -0.214
+# t30          0.133   -0.001 -0.063  1.000 -0.006 -0.011 -0.058   -0.031     -0.004
+# debtR       -0.008    0.003  0.022 -0.006  1.000 -0.017  0.041    0.096     -0.036
+# income      -0.018    0.004  0.035 -0.011 -0.017  1.000  0.097    0.130      0.071
+# loans       -0.027   -0.012  0.148 -0.058  0.041  0.097  1.000    0.432      0.074
+# mortgage    -0.005    0.006  0.032 -0.031  0.096  0.130  0.432    1.000      0.126
+# dependents   0.048    0.000 -0.214 -0.004 -0.036  0.071  0.074    0.126      1.000
 
 #----------------------------------------------------------------
 # logistic regresison
 #----------------------------------------------------------------
 
-# question: as.factor() for categorical variables?
-t1.glm <- glm(factor(default) ~ ., data = t1, family = binomial)
-summary(t1.glm)
+# Run logistic regresson on the new training dataset
+# covariates balanceR and loans are insignificant - should delete them from the final model
+glm.newTr <- glm(factor(delin90) ~ ., family = binomial, data = newTr)
+summary(glm.newTr)
+
 # Call:
-#   glm(formula = factor(default) ~ ., family = binomial, data = t1)
+#   glm(formula = factor(delin90) ~ ., family = binomial, data = newTr)
 # 
 # Deviance Residuals: 
 #   Min       1Q   Median       3Q      Max  
-# -3.0181  -0.3960  -0.3243  -0.2626   5.0906  
+# -2.0832  -0.4144  -0.3378  -0.2746   4.8933  
 # 
 # Coefficients:
 #   Estimate Std. Error z value Pr(>|z|)    
-# (Intercept) -1.455e+00  5.548e-02 -26.221  < 2e-16 ***
-#   balanceR    -5.504e-05  1.004e-04  -0.548   0.5837    
-# age         -2.571e-02  1.117e-03 -23.015  < 2e-16 ***
-#   t30          5.034e-01  1.438e-02  34.996  < 2e-16 ***
-#   debtR       -1.258e-04  5.624e-05  -2.236   0.0254 *  
-#   income      -3.988e-05  3.918e-06 -10.180  < 2e-16 ***
-#   loans       -5.214e-03  3.292e-03  -1.584   0.1132    
-# t90          4.333e-01  1.984e-02  21.842  < 2e-16 ***
-#   mortgage     6.987e-02  1.318e-02   5.299 1.16e-07 ***
-#   t60         -9.012e-01  2.301e-02 -39.172  < 2e-16 ***
-#   dependents   9.888e-02  1.161e-02   8.520  < 2e-16 ***
+# (Intercept) -1.154e+00  5.757e-02 -20.049  < 2e-16 ***
+#   balanceR    -3.209e-05  9.022e-05  -0.356   0.7221    
+#   age         -2.945e-02  1.144e-03 -25.745  < 2e-16 ***
+#   t30          3.899e-02  2.235e-03  17.448  < 2e-16 ***
+#   debtR       -3.117e-05  1.492e-05  -2.089   0.0367 *  
+#   income      -3.649e-05  4.400e-06  -8.292  < 2e-16 ***
+#   loans        6.316e-04  3.412e-03   0.185   0.8531    
+#   mortgage     5.985e-02  1.423e-02   4.205 2.61e-05 ***
+#   dependents   1.191e-01  1.248e-02   9.546  < 2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # (Dispersion parameter for binomial family taken to be 1)
 # 
-# Null deviance: 42088  on 84187  degrees of freedom
-# Residual deviance: 38841  on 84177  degrees of freedom
-# AIC: 38863
+# Null deviance: 36697  on 74999  degrees of freedom
+# Residual deviance: 35101  on 74991  degrees of freedom
+# AIC: 35119
 # 
 # Number of Fisher Scoring iterations: 6
 
-# Performs stepwise model selection by AIC.
-library(MASS)
-t1.glm.step <- stepAIC(t1.glm)
-# Start:  AIC=38863.06
-# factor(default) ~ balanceR + age + t30 + debtR + income + loans + 
-#   t90 + mortgage + t60 + dependents
+
+# Check collinearity on the new training data
+vif(glm.newTr)
+# balanceR        age        t30      debtR     income      loans   mortgage dependents 
+# 1.000521   1.101507   1.011154   1.058354   1.211233   1.343081   1.392122   1.068982 
+
+# Perform stepwise model selection
+# results agree with my suspision 
+# final model contains 6 covariates: age, debtR, income, t90, mortgage, and dependents
+step.newTr <- step(glm.newTr)
+# Start:  AIC=35119.06
+# factor(delin90) ~ balanceR + age + t30 + debtR + income + loans + 
+#   mortgage + dependents
 # 
 # Df Deviance   AIC
-# - balanceR    1    38841 38861
-# <none>             38841 38863
-# - loans       1    38844 38864
-# - debtR       1    38847 38867
-# - mortgage    1    38868 38888
-# - dependents  1    38911 38931
-# - income      1    38970 38990
-# - t90         1    39314 39334
-# - age         1    39400 39420
-# - t30         1    39931 39951
-# - t60         1    40309 40329
+# - loans       1    35101 35117
+# - balanceR    1    35101 35117
+# <none>             35101 35119
+# - debtR       1    35106 35122
+# - mortgage    1    35118 35134
+# - income      1    35185 35201
+# - dependents  1    35188 35204
+# - t30         1    35521 35537
+# - age         1    35808 35824
 # 
-# Step:  AIC=38861.44
-# factor(default) ~ age + t30 + debtR + income + loans + t90 + 
-#   mortgage + t60 + dependents
+# Step:  AIC=35117.09
+# factor(delin90) ~ balanceR + age + t30 + debtR + income + mortgage + 
+#   dependents
 # 
 # Df Deviance   AIC
-# <none>             38841 38861
-# - loans       1    38844 38862
-# - debtR       1    38848 38866
-# - mortgage    1    38868 38886
-# - dependents  1    38912 38930
-# - income      1    38970 38988
-# - t90         1    39315 39333
-# - age         1    39401 39419
-# - t30         1    39932 39950
-# - t60         1    40309 40327
-t1.glm.step$ANOVA
-# NULL # why?
+# - balanceR    1    35101 35115
+# <none>             35101 35117
+# - debtR       1    35106 35120
+# - mortgage    1    35121 35135
+# - income      1    35185 35199
+# - dependents  1    35188 35202
+# - t30         1    35524 35538
+# - age         1    35826 35840
+# 
+# Step:  AIC=35115.24
+# factor(delin90) ~ age + t30 + debtR + income + mortgage + dependents
+# 
+# Df Deviance   AIC
+# <none>             35101 35115
+# - debtR       1    35107 35119
+# - mortgage    1    35121 35133
+# - income      1    35186 35198
+# - dependents  1    35188 35200
+# - t30         1    35524 35536
+# - age         1    35826 35838
 
-# training error
-table(t1$default, predict(t1.glm)>0)
-# FALSE  TRUE
-# 0 78250   164
-# 1  5556   218
+## FINAL LOGISTIC MODEL WITH COVARIATES
+## age, debtR, income, t30, mortgage, dependents
+glm.final <- glm(factor(delin90) ~ age + debtR + income + t30 + mortgage + dependents, family = binomial, data = newTr)
+summary(glm.final)
 
-# prediction error
-table(t2$default, predict(t1.glm, newdata = t2, type = "response")>0)
-# TRUE
-# 0 33498
-# 1  2583
+# Call:
+#   glm(formula = factor(delin90) ~ age + debtR + income + t30 + 
+#         mortgage + dependents, family = binomial, data = newTr)
+# 
+# Deviance Residuals: 
+#   Min       1Q   Median       3Q      Max  
+# -2.0830  -0.4144  -0.3378  -0.2745   4.8904  
+# 
+# Coefficients:
+#   Estimate Std. Error z value Pr(>|z|)    
+# (Intercept) -1.153e+00  5.683e-02 -20.283  < 2e-16 ***
+#   age         -2.941e-02  1.124e-03 -26.161  < 2e-16 ***
+#   debtR       -3.117e-05  1.492e-05  -2.089   0.0367 *  
+#   income      -3.642e-05  4.373e-06  -8.328  < 2e-16 ***
+#   t30          3.896e-02  2.228e-03  17.484  < 2e-16 ***
+#   mortgage     6.083e-02  1.317e-02   4.618 3.87e-06 ***
+#   dependents   1.192e-01  1.246e-02   9.567  < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# (Dispersion parameter for binomial family taken to be 1)
+# 
+# Null deviance: 36697  on 74999  degrees of freedom
+# Residual deviance: 35101  on 74993  degrees of freedom
+# AIC: 35115
+# 
+# Number of Fisher Scoring iterations: 6
 
-t1.glm1 <- glm(factor(default) ~ age + t30 + debtR + income + t90 + mortgage + t60 + dependents, data = t1, family = binomial)
-summary(t1.glm1)
+# Consider perfom woe on covariates, will skip this time
+# library(woe)
+# woemodel <- woe(Data = newTrain, "age", TRUE, "default", 5, Bad = 0, Good = 1)
 
-t1.glm.step1 <- stepAIC(t1.glm1)
-t1.glm.step1$ANOVA
+# Run the final model on testing set, te
+glm.prob <- predict(glm.final, newdata = te, type = "response")
+# ROC curve
+library(pROC)
+glm.roc <- roc(factor(delin90) ~ glm.prob, data = te)
+plot(glm.roc)
 
-# training error
-table(t1$default, predict(t1.glm1)>0)
+table(te$delin90, glm.prob > 0)
+#   TRUE
+# 0 35005
+# 1  2495
 
-# FALSE  TRUE
-# 0 78250   164
-# 1  5557   217
-
-table(t2$default, predict(t1.glm1, newdata = t2, type = "response")>0)
-
+# Probability on the real test set
+glm.pred <- predict(glm.final, newdata = test, type = "response")
 
 #----------------------------------------------------------------
 # linear discriminant analysis
 #----------------------------------------------------------------
-t1.lda <- lda(factor(default) ~ ., data = t1)
-summary(t1.lda)
+# Don't need to tune hyperparameter in this case
 
-lda.test <- predict(t1.lda, newdata = t2, type = response)$class
+library(MASS)
+lda.tr <- lda(factor(delin90) ~ ., data = newTr)
+lda.tr
+# Call:
+#   lda(factor(delin90) ~ ., data = newTr)
+# 
+# Prior probabilities of groups:
+#   0       1 
+# 0.93344 0.06656 
+# 
+# Group means:
+#   balanceR      age       t30    debtR   income    loans  mortgage dependents
+# 0 5.699010 52.83956 0.2783825 364.4883 6433.843 8.490658 1.0191121  0.7160896
+# 1 4.306585 46.05028 2.6067708 289.4354 5617.839 7.935897 0.9959936  0.9294872
+# 
+# Coefficients of linear discriminants:
+#   LD1
+# balanceR   -4.760292e-05
+# age        -3.910581e-02
+# t30         1.708365e-01
+# debtR      -9.360063e-06
+# income     -7.892434e-06
+# loans      -8.078000e-03
+# mortgage    2.028115e-02
+# dependents  1.512661e-01
 
-# misclassification rate on the test data
-# mis.lda.test <- sum(abs(as.numeric(lda.test) - 1 - t2$default))/36081
-# [1] 0.07036945
+lda.prob <- predict(lda.tr, newdata = te, type = response)
+lda.tab <- table(lda.prob$class, te$delin90)
 
-table(t2$default, lda.test)
-# lda.test
+library(caret)
+confusionMatrix(lda.tab)
+# Confusion Matrix and Statistics
+# 
+# 
 #       0     1
-# 0 33304   194
-# 1  2345   238
+# 0 34972  2464
+# 1    33    31
+# 
+# Accuracy : 0.9334          
+# 95% CI : (0.9308, 0.9359)
+# No Information Rate : 0.9335          
+# P-Value [Acc > NIR] : 0.5218          
+# 
+# Kappa : 0.021           
+# Mcnemar's Test P-Value : <2e-16          
+#                                           
+#             Sensitivity : 0.99906         
+#             Specificity : 0.01242         
+#          Pos Pred Value : 0.93418         
+#          Neg Pred Value : 0.48438         
+#              Prevalence : 0.93347         
+#          Detection Rate : 0.93259         
+#    Detection Prevalence : 0.99829         
+#       Balanced Accuracy : 0.50574         
+#                                           
+#        'Positive' Class : 0          
 
-# precision = P(default | prediction default) = 33304/(33304+194) = 0.9942086
-# recall = sensitivity = P(prediction default | default) = 33304/(33304+2345) = 0.9342198
 
-.Last.value/dim(t2)[1]
-# lda.test
-#             0           1
-# 0 0.923034284 0.005376791
-# 1 0.064992655 0.006596270
+# Probability on the real test set
+lda.pred <- predict(lda.tr, newdata = test, type = response)$x
 
-# misclassification rate = round(0.005376791 + 0.064992655, 5) = 0.07037
 #----------------------------------------------------------------
 # smoothing spline
 #----------------------------------------------------------------
-library(mgcv)
-t1.gam <- gam(factor(default) ~ s(balanceR) + s(age) + s(t30) + s(debtR) + s(income) + s(loans) + s(t90) + s(mortgage) + s(t60) + s(dependents), data = t1, family = binomial)
-summary(t1.gam)
+# library(mgcv)
+# t1.gam <- gam(factor(default) ~ s(balanceR) + s(age) + s(t30) + s(debtR) + s(income) + s(loans) + s(t90) + s(mortgage) + s(t60) + s(dependents), data = t1, family = binomial)
+# summary(t1.gam)
 
 # doesn't work?
 # gam.test <- predict(t1.gam, newdata = t2, type="response")$class
@@ -371,74 +498,122 @@ summary(t1.gam)
 library(class)
 # how to properly select k?
 set.seed (1)
-t1.knn <- knn(train = t1, test = t2, cl = factor(t1$default), k = 3)
+knn.tr <- knn(train = newTr, test = te[,c(-8, -10)], cl = factor(newTr$delin90), k = 3)
 
-table(t2$default, t1.knn)
-# t1.knn
-#       0     1
-# 0 33244   254
-# 1  2469   114
-.Last.value/dim(t2)[1]
-# t1.knn
-#             0           1
-# 0 0.921371359 0.007039716
-# 1 0.068429367 0.003159558
+knn.tab <- table(knn.tr, te$delin90)
+confusionMatrix(knn.tab)
+# Confusion Matrix and Statistics
+# 
+# 
+# knn.tr     0     1
+#      0 34713  2383
+#      1   292   112
+# 
+# Accuracy : 0.9287         
+# 95% CI : (0.926, 0.9313)
+# No Information Rate : 0.9335         
+# P-Value [Acc > NIR] : 0.9999         
+# 
+# Kappa : 0.0598         
+# Mcnemar's Test P-Value : <2e-16         
+# 
+# Sensitivity : 0.99166        
+# Specificity : 0.04489        
+# Pos Pred Value : 0.93576        
+# Neg Pred Value : 0.27723        
+# Prevalence : 0.93347        
+# Detection Rate : 0.92568        
+# Detection Prevalence : 0.98923        
+# Balanced Accuracy : 0.51827        
+# 
+# 'Positive' Class : 0    
 
-# misclassification rate = round(0.007039716 + 0.068429367, 5) = 0.07547
+knn.roc <- roc(factor(delin90) ~ knn.prob, data = te)
+plot(knn.roc)
 
 #----------------------------------------------------------------
 # Naive Bayes
 #----------------------------------------------------------------
 library(e1071)
-t1.nBayes <- naiveBayes(factor(default) ~ ., data = t1)
-summary(t1.nBayes)
+nBayes.tr <- naiveBayes(factor(delin90) ~ ., data = newTr)
+nBayes.tr
 
-nBayes.test <- predict(t1.nBayes, newdata = t2, type = "class")
-table(t2$default, nBayes.test)
-# nBayes.test
-#       0     1
-# 0 33403    95
-# 1  2528    55
-.Last.value/dim(t2)[1]
-# nBayes.test
-#             0           1
-# 0 0.925778110 0.002632965
-# 1 0.070064577 0.001524348
-
-# misclassification rate = round(0.002632965 + 0.070064577, 5) = 0.0727
+nBayes.prob <- predict(nBayes.tr, newdata = te, type = "class")
+nBayes.tab <- table(nBayes.prob, te$delin90)
+confusionMatrix(nBayes.tab)
+# Confusion Matrix and Statistics
+# 
+# 
+# nBayes.prob     0     1
+#           0 34629  2372
+#           1   376   123
+# 
+# Accuracy : 0.9267         
+# 95% CI : (0.924, 0.9293)
+# No Information Rate : 0.9335         
+# P-Value [Acc > NIR] : 1              
+# 
+# Kappa : 0.0613         
+# Mcnemar's Test P-Value : <2e-16         
+# 
+# Sensitivity : 0.9893         
+# Specificity : 0.0493         
+# Pos Pred Value : 0.9359         
+# Neg Pred Value : 0.2465         
+# Prevalence : 0.9335         
+# Detection Rate : 0.9234         
+# Detection Prevalence : 0.9867         
+# Balanced Accuracy : 0.5193         
+# 
+# 'Positive' Class : 0     
 
 #----------------------------------------------------------------
 # Decision Tree
 #----------------------------------------------------------------
 library(rpart)
 set.seed(1)
-tree.t1 <- rpart(factor(default) ~ ., data = t1, cp = 0.001)
-summary(tree.t1)
+# cp: complexity parameter - need to tune
+tree.tr <- rpart(factor(delin90) ~ ., data = newTr, cp = 0.001)
+summary(tree.tr)
 
-tree.test <- predict(tree.t1, newdata = t2, type = "class")
-table(t2$default, tree.test)
-# tree.test
-#       0     1
-# 0 33191   307
-# 1  2129   454
-.Last.value/dim(t2)[1]
-# tree.test
-#             0           1
-# 0 0.919902442 0.008508633
-# 1 0.059006125 0.012582800
-
-# misclassification rate = round(0.008508633 + 0.059006125, 5) = 0.06751
-
+tree.prob <- predict(tree.tr, newdata = te, type = "class")
+tree.tab <- table(tree.prob, te$delin90)
+confusionMatrix(tree.tab)
+# Confusion Matrix and Statistics
+# 
+# 
+# tree.prob     0     1
+#         0 34856  2331
+#         1   149   164
+# 
+# Accuracy : 0.9339          
+# 95% CI : (0.9313, 0.9364)
+# No Information Rate : 0.9335          
+# P-Value [Acc > NIR] : 0.383           
+# 
+# Kappa : 0.1035          
+# Mcnemar's Test P-Value : <2e-16          
+# 
+# Sensitivity : 0.99574         
+# Specificity : 0.06573         
+# Pos Pred Value : 0.93732         
+# Neg Pred Value : 0.52396         
+# Prevalence : 0.93347         
+# Detection Rate : 0.92949         
+# Detection Prevalence : 0.99165         
+# Balanced Accuracy : 0.53074         
+# 
+# 'Positive' Class : 0     
 #----------------------------------------------------------------
 # Random Forest
 #----------------------------------------------------------------
 library(randomForest)
 set.seed (1)
-rf.t1 <- randomForest(factor(default) ~ ., data = t1)
+rf.tr <- randomForest(factor(default) ~ ., data = newTr)
 
 # Plot variable importance
-importance(rf.t1)
-varImpPlot(rf.t1)
+importance(rf.tr)
+varImpPlot(rf.tr)
 
 rf.test <- predict(rf.t1, newdata = t2)
 table(t2$default, rf.test)
@@ -485,5 +660,6 @@ boost.pred <- predict(boost.t1, newdata = t2, n.trees=5000)
 
 
 #----------------------------------------------------------------
-# Extreme Boosting
+# XGBoost  
 #----------------------------------------------------------------
+library(xgboost)
