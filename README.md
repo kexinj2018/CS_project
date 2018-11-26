@@ -8,9 +8,11 @@
   Precision in this context is particularly important. 
 
 - Before any modelling, first inspect the features in the following ways:
-  1) range and outliers (histogram or boxplot)
-  2) correlations among different features
-  3) feature scaling of feature X, i.e. (X-mean)/std. Since some of the outliers has relative large value, will set them to be        1 and will not include them into the standard deviation calculation, see R code for details.
+  - Range and outliers (histogram or boxplot)
+  - Missing data: The dataset contains about 20% missing data if deleting rows with NA. Since the number is significant, I imputed the missing data, see R code for details, before any scaling.
+  - Correlations among different features
+  - Feature scaling of feature X: (X-mean)/std. Since some of the outliers has relative large value, will set them to be        1 and will not include them into the standard deviation calculation, see R code for details.
+  - Binning: lead to loss of information, not considered here
  
 - Crude methods: include all major machine learning methods.
   1) logistic regression
