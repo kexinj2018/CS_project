@@ -25,8 +25,8 @@
   
   Comments: 
   
-  - Due to time constraints, only considered linear SVM; should have considered Gaussian SVM as well if time allowed. 
   - Hyperparameter tuning: Due to time constraints, I won't tune hyperparameters in all models, and only tune that with the lowest validation error. For the rest of the models, I use the most commonly/popular/default used values for hyperparameter. 
+  - Due to time constraints, only considered linear SVM; should have considered Gaussian SVM as well if time allowed. 
   - Left out: gradient boosting (half finished under comments in R), flexible discrimant analysis, bagging, MARS among others due to time constraints.
   
 - Data spliting: 
