@@ -22,14 +22,12 @@
   5) Decision Tree
   6) Random Forest
   7) Support Vector Machine (SVM)
-  8) Gradient Boosting
   
   Comments: 
   
-  - There're three major boosting methods: AdaBoost, Gradient Boosting, and XGBoost. I chose Gradient boost because it's most representative one compared to the other two. AdaBoost is considered to be a primative version of Gradient Boost; and I ran out of time to do XGBoost.
   - Due to time constraints, I won't run both Gaussian SVM and linear SVM. 
   - Hyperparameter tuning: Due to time constraints, I won't tune hyperparameters in all models, and only tune that with the lowest validation error. For the rest of the models, I use the most commonly/popular/default used values for hyperparameter. 
-  - Left out: flexible discrimant analysis, bagging, MARS among others due to time constraints.
+  - Left out: gradient boosting (half finished under comments in R), flexible discrimant analysis, bagging, MARS among others due to time constraints.
   
 - Data spliting: 
   - Split the given training set according to 70/20/10 for training, validation and test sets.
