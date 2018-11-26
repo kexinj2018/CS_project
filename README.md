@@ -12,7 +12,7 @@
   2) correlations among different features
   3) feature scaling of feature X, i.e. (X-mean)/std. Since some of the outliers has relative large value, will set them to be        1 and will not include them into the standard deviation calculation, see R code for details.
  
-- Crude method selections: include all major machine learning methods.
+- Crude methods: include all major machine learning methods.
   1) logistic regression
   2) linear discriminant analysis (LDA)
   3) k-nearest-neighbor
@@ -27,6 +27,7 @@
   - There're three major boosting methods: AdaBoost, Gradient Boosting, and XGBoost. I chose Gradient boost because it's most representative one compared to the other two. AdaBoost is considered to be a primative version of Gradient Boost; and I ran out of time to do XGBoost.
   - Due to time constraints, I won't run both Gaussian SVM and linear SVM. 
   - Hyperparameter tuning: Due to time constraints, I won't tune hyperparameters in all models, and only tune that with the lowest validation error. For the rest of the models, I use the most commonly/popular/default used values for hyperparameter. 
+  - Left out: flexible discrimant analysis, bagging, MARS among others due to time constraints.
   
 - Data spliting: 
   - Split the given training set according to 70/20/10 for training, validation and test sets.
