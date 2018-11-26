@@ -11,7 +11,7 @@
   - Range and outliers (histogram or boxplot)
   - Missing data: The dataset contains about 20% missing data if deleting rows with NA. Since the number is significant, I imputed the missing data, see R code for details, before any scaling.
   - Correlations among different features
-  - Feature scaling of feature X: (X-mean)/std. Since some of the outliers has relative large value, will set them to be        1 and will not include them into the standard deviation calculation, see R code for details.
+  - Feature scaling of feature X: (X-mean)/std for age and (X - min(X))/(max(X) - min(X)) for the rest of features. Since some of the outliers has relative large value, will set them to be 1 and will not include them into the denominator calculations, see R code for details.
   - Binning: lead to loss of information, not considered here
  
 - Crude methods: include all major machine learning methods.
