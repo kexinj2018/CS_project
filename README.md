@@ -5,7 +5,7 @@
   2) choose the best model with the lowest validation error on the validation set;
   3) tune hyperparameters for the chosen model from step 2 on the validation set, and 
   4) finally, run all the methods on the test set and obtain the test error, recall and precision; and select the best model.
-  Precision in this context is particularly important. 
+  Precision in this context is particularly impoIrtant. 
 
 - Before any modelling, first inspect the features in the following ways:
   - Range and outliers (histogram or boxplot)
@@ -25,7 +25,7 @@
   
   Comments: 
   
-  - Due to time constraints, I won't run both Gaussian SVM and linear SVM. 
+  - Due to time constraints, only considered linear SVM; should have considered Gaussian SVM as well if time allowed. 
   - Hyperparameter tuning: Due to time constraints, I won't tune hyperparameters in all models, and only tune that with the lowest validation error. For the rest of the models, I use the most commonly/popular/default used values for hyperparameter. 
   - Left out: gradient boosting (half finished under comments in R), flexible discrimant analysis, bagging, MARS among others due to time constraints.
   
